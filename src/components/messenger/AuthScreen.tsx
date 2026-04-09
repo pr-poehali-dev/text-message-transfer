@@ -1,6 +1,7 @@
 import { useState } from "react";
 import Icon from "@/components/ui/icon";
 import { api } from "@/lib/api";
+import { sounds } from "@/lib/sounds";
 import type { User } from "./types";
 
 const INPUT_CLS = "w-full bg-[hsl(220_12%_13%)] border border-[hsl(220_12%_19%)] rounded-xl px-4 py-2.5 text-sm text-[hsl(210_20%_92%)] placeholder-[hsl(215_12%_36%)] outline-none focus:border-[hsl(168_84%_28%)] transition-colors";
@@ -16,13 +17,16 @@ export function AuthScreen({ onAuth }: { onAuth: (user: User, sid: string) => vo
 
   const submit = async () => {
     if (mode === "register" && (!username || !displayName || !email || !password)) {
+      sounds.error();
       setError("Заполните все поля");
       return;
     }
     if (mode === "login" && (!username || !password)) {
+      sounds.error();
       setError("Заполните все поля");
       return;
     }
+    sounds.click();
     setLoading(true);
     setError("");
     try {
@@ -34,8 +38,10 @@ export function AuthScreen({ onAuth }: { onAuth: (user: User, sid: string) => vo
       }
       api.saveSession(data.session_id);
       api.saveUser(data.user);
+      sounds.success();
       onAuth(data.user, data.session_id);
     } catch (e: unknown) {
+      sounds.error();
       setError(e instanceof Error ? e.message : "Ошибка");
     } finally {
       setLoading(false);

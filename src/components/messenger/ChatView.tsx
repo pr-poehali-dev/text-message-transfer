@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import Icon from "@/components/ui/icon";
 import { api } from "@/lib/api";
+import { sounds } from "@/lib/sounds";
 import type { Chat, Message, User } from "./types";
 
 export function AvatarCircle({ initials, online, size = "md" }: { initials: string; online?: boolean; size?: "sm" | "md" | "lg" }) {
@@ -50,7 +51,7 @@ export function ChatsPanel({ chats, onSelect, selected, loading }: { chats: Chat
         {chats.map((chat, i) => (
           <div
             key={chat.id}
-            onClick={() => onSelect(chat.id)}
+            onClick={() => { sounds.click(); onSelect(chat.id); }}
             className={`chat-item animate-slide-in ${selected === chat.id ? "selected" : ""}`}
             style={{ animationDelay: `${i * 40}ms` }}
           >
@@ -129,11 +130,13 @@ export function ChatWindow({ chatId, chats, currentUser, onMessageSent }: { chat
     const text = input.trim();
     setInput("");
     setSending(true);
+    sounds.send();
     try {
       const data = await api.sendMessage(chatId, text);
       setMessages((prev) => [...prev, data.message]);
       onMessageSent();
     } catch {
+      sounds.error();
       setInput(text);
     } finally {
       setSending(false);

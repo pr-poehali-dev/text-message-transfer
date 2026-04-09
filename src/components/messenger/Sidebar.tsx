@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import Icon from "@/components/ui/icon";
 import { api } from "@/lib/api";
+import { sounds } from "@/lib/sounds";
 import { AvatarCircle } from "./ChatView";
 import { NOTIFICATIONS_STATIC } from "./types";
 import type { Chat, Message, User } from "./types";
@@ -15,12 +16,14 @@ export function ContactsPanel({ currentUser, onStartChat }: { currentUser: User;
   }, []);
 
   const startChat = async (userId: number) => {
+    sounds.click();
     setCreating(userId);
     try {
       const data = await api.createChat(userId);
+      sounds.success();
       onStartChat(data.chat_id);
     } catch {
-      // ignore
+      sounds.error();
     } finally {
       setCreating(null);
     }
@@ -199,6 +202,7 @@ export function SettingsPanel({ currentUser, onLogout }: { currentUser: User; on
   );
 
   const logout = async () => {
+    sounds.click();
     await api.logout().catch(() => {});
     api.clearSession();
     onLogout();

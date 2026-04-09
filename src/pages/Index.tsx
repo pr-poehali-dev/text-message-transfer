@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Icon from "@/components/ui/icon";
 import { api } from "@/lib/api";
+import { sounds } from "@/lib/sounds";
 import { AuthScreen } from "@/components/messenger/AuthScreen";
 import { ChatsPanel, ChatWindow } from "@/components/messenger/ChatView";
 import { ContactsPanel, NotificationsPanel, SearchPanel, SettingsPanel } from "@/components/messenger/Sidebar";
@@ -67,7 +68,7 @@ export default function Index() {
         {navItems.map((item) => (
           <button
             key={item.id}
-            onClick={() => { setTab(item.id); if (item.id !== "chats") setSelectedChat(null); }}
+            onClick={() => { sounds.nav(); setTab(item.id); if (item.id !== "chats") setSelectedChat(null); }}
             className={`nav-item relative w-12 ${tab === item.id ? "active" : ""}`}
             title={item.label}
           >
