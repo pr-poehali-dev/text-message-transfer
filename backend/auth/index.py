@@ -47,13 +47,13 @@ def send_welcome_email(to_email: str, display_name: str, username: str, password
     smtp_password = os.environ["SMTP_PASSWORD"]
 
     msg = MIMEMultipart("alternative")
-    msg["Subject"] = "Добро пожаловать в Cipher — ваши данные для входа"
-    msg["From"] = f"Cipher Messenger <{smtp_email}>"
+    msg["Subject"] = "Добро пожаловать в YANCHAT — ваши данные для входа"
+    msg["From"] = f"YANCHAT <{smtp_email}>"
     msg["To"] = to_email
 
     text_body = f"""Привет, {display_name}!
 
-Вы успешно зарегистрировались в Cipher — защищённом мессенджере с шифрованием AES-256.
+Вы успешно зарегистрировались в YANCHAT — защищённом мессенджере с шифрованием AES-256.
 
 Ваши данные для входа:
   Логин: {username}
@@ -77,7 +77,7 @@ def send_welcome_email(to_email: str, display_name: str, username: str, password
             <div style="width:56px;height:56px;background:#0d2e24;border:1px solid #1a5c42;border-radius:14px;display:inline-flex;align-items:center;justify-content:center;margin-bottom:16px;">
               <span style="font-size:24px;">🔐</span>
             </div>
-            <h1 style="margin:0;font-size:22px;font-weight:700;color:#edf0f5;">Cipher</h1>
+            <h1 style="margin:0;font-size:22px;font-weight:700;color:#edf0f5;">YANCHAT</h1>
             <p style="margin:6px 0 0;font-size:12px;color:#4a5568;font-family:monospace;">AES-256-GCM · E2E Encrypted</p>
           </td>
         </tr>
@@ -85,7 +85,7 @@ def send_welcome_email(to_email: str, display_name: str, username: str, password
           <td style="padding:28px 32px;">
             <p style="margin:0 0 20px;font-size:15px;color:#c8d0dc;">Привет, <strong style="color:#edf0f5;">{display_name}</strong>!</p>
             <p style="margin:0 0 24px;font-size:14px;color:#8896aa;line-height:1.6;">
-              Вы успешно зарегистрировались в Cipher — защищённом мессенджере с шифрованием AES-256-GCM.
+              Вы успешно зарегистрировались в YANCHAT — защищённом мессенджере с шифрованием AES-256-GCM.
             </p>
             <div style="background:#0d1520;border:1px solid #1e2d3d;border-radius:12px;padding:20px 24px;margin-bottom:24px;">
               <p style="margin:0 0 4px;font-size:11px;color:#4a5568;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;">Логин</p>
@@ -102,7 +102,7 @@ def send_welcome_email(to_email: str, display_name: str, username: str, password
         </tr>
         <tr>
           <td style="padding:16px 32px 24px;text-align:center;border-top:1px solid #1e2330;">
-            <p style="margin:0;font-size:12px;color:#2d3748;">Cipher Messenger · Все сообщения зашифрованы</p>
+            <p style="margin:0;font-size:12px;color:#2d3748;">YANCHAT · Все сообщения зашифрованы</p>
           </td>
         </tr>
       </table>

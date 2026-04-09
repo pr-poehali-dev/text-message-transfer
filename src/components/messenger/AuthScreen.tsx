@@ -49,7 +49,7 @@ export function AuthScreen({ onAuth }: { onAuth: (user: User, sid: string) => vo
           <div className="w-14 h-14 rounded-2xl bg-[hsl(168_84%_10%)] border border-[hsl(168_84%_22%)] flex items-center justify-center mb-4 glow-green">
             <Icon name="ShieldCheck" size={28} className="text-[hsl(168_84%_52%)]" />
           </div>
-          <h1 className="text-2xl font-bold text-[hsl(210_20%_92%)]">Cipher</h1>
+          <h1 className="text-2xl font-bold text-[hsl(210_20%_92%)]">YANCHAT</h1>
           <p className="text-sm text-[hsl(215_12%_48%)] mt-1 font-mono-cipher">AES-256-GCM · E2E Encrypted</p>
         </div>
 
