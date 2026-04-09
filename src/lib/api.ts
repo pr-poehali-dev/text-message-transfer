@@ -34,8 +34,8 @@ async function req(base: keyof typeof URLS, path: string, method = "GET", body?:
 
 export const api = {
   // Auth
-  register: (username: string, display_name: string, password: string) =>
-    req("auth", "/register", "POST", { username, display_name, password }),
+  register: (username: string, display_name: string, password: string, email: string) =>
+    req("auth", "/register", "POST", { username, display_name, password, email }),
 
   login: (username: string, password: string) =>
     req("auth", "/login", "POST", { username, password }),

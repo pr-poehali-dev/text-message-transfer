@@ -2,6 +2,10 @@ import json
 import os
 import hashlib
 import secrets
+import smtplib
+import ssl
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 import psycopg2
 
 
@@ -38,6 +42,84 @@ def get_user_by_session(conn, session_id: str):
     return {"id": row[0], "username": row[1], "display_name": row[2], "avatar_initials": row[3], "status": row[4]}
 
 
+def send_welcome_email(to_email: str, display_name: str, username: str, password: str):
+    smtp_email = os.environ["SMTP_EMAIL"]
+    smtp_password = os.environ["SMTP_PASSWORD"]
+
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = "Добро пожаловать в Cipher — ваши данные для входа"
+    msg["From"] = f"Cipher Messenger <{smtp_email}>"
+    msg["To"] = to_email
+
+    text_body = f"""Привет, {display_name}!
+
+Вы успешно зарегистрировались в Cipher — защищённом мессенджере с шифрованием AES-256.
+
+Ваши данные для входа:
+  Логин: {username}
+  Пароль: {password}
+
+Сохраните это письмо — пароль больше не будет отправлен повторно.
+
+С уважением,
+Команда Cipher
+"""
+
+    html_body = f"""<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background:#0f1117;font-family:'Helvetica Neue',Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#0f1117;padding:40px 20px;">
+    <tr><td align="center">
+      <table width="480" cellpadding="0" cellspacing="0" style="background:#13161e;border-radius:16px;border:1px solid #1e2330;overflow:hidden;">
+        <tr>
+          <td style="padding:32px 32px 24px;text-align:center;border-bottom:1px solid #1e2330;">
+            <div style="width:56px;height:56px;background:#0d2e24;border:1px solid #1a5c42;border-radius:14px;display:inline-flex;align-items:center;justify-content:center;margin-bottom:16px;">
+              <span style="font-size:24px;">🔐</span>
+            </div>
+            <h1 style="margin:0;font-size:22px;font-weight:700;color:#edf0f5;">Cipher</h1>
+            <p style="margin:6px 0 0;font-size:12px;color:#4a5568;font-family:monospace;">AES-256-GCM · E2E Encrypted</p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:28px 32px;">
+            <p style="margin:0 0 20px;font-size:15px;color:#c8d0dc;">Привет, <strong style="color:#edf0f5;">{display_name}</strong>!</p>
+            <p style="margin:0 0 24px;font-size:14px;color:#8896aa;line-height:1.6;">
+              Вы успешно зарегистрировались в Cipher — защищённом мессенджере с шифрованием AES-256-GCM.
+            </p>
+            <div style="background:#0d1520;border:1px solid #1e2d3d;border-radius:12px;padding:20px 24px;margin-bottom:24px;">
+              <p style="margin:0 0 4px;font-size:11px;color:#4a5568;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;">Логин</p>
+              <p style="margin:0 0 16px;font-size:16px;color:#edf0f5;font-family:monospace;">{username}</p>
+              <p style="margin:0 0 4px;font-size:11px;color:#4a5568;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;">Пароль</p>
+              <p style="margin:0;font-size:16px;color:#2dd4a0;font-family:monospace;font-weight:600;">{password}</p>
+            </div>
+            <div style="background:#0d1e16;border:1px solid #1a3a28;border-radius:10px;padding:14px 18px;">
+              <p style="margin:0;font-size:12px;color:#2d7a58;line-height:1.5;">
+                🔒 Сохраните это письмо — пароль больше не будет отправлен повторно.
+              </p>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:16px 32px 24px;text-align:center;border-top:1px solid #1e2330;">
+            <p style="margin:0;font-size:12px;color:#2d3748;">Cipher Messenger · Все сообщения зашифрованы</p>
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>"""
+
+    msg.attach(MIMEText(text_body, "plain", "utf-8"))
+    msg.attach(MIMEText(html_body, "html", "utf-8"))
+
+    context = ssl.create_default_context()
+    with smtplib.SMTP_SSL("smtp.yandex.ru", 465, context=context) as server:
+        server.login(smtp_email, smtp_password)
+        server.sendmail(smtp_email, to_email, msg.as_string())
+
+
 CORS = {
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
@@ -46,7 +128,7 @@ CORS = {
 
 
 def handler(event: dict, context) -> dict:
-    """Аутентификация: регистрация, вход, выход, получение профиля"""
+    """Аутентификация: регистрация (с отправкой пароля на email), вход, выход, профиль"""
     if event.get("httpMethod") == "OPTIONS":
         return {"statusCode": 200, "headers": CORS, "body": ""}
 
@@ -64,7 +146,8 @@ def handler(event: dict, context) -> dict:
             username = body.get("username", "").strip().lower()
             display_name = body.get("display_name", "").strip()
             password = body.get("password", "")
-            if not username or not display_name or not password:
+            email = body.get("email", "").strip().lower()
+            if not username or not display_name or not password or not email:
                 return {"statusCode": 400, "headers": CORS, "body": json.dumps({"error": "Все поля обязательны"})}
             initials = "".join([w[0].upper() for w in display_name.split()[:2]])
             with conn.cursor() as cur:
@@ -72,12 +155,18 @@ def handler(event: dict, context) -> dict:
                 if cur.fetchone():
                     return {"statusCode": 409, "headers": CORS, "body": json.dumps({"error": "Пользователь уже существует"})}
                 cur.execute(
-                    "INSERT INTO users (username, display_name, password_hash, avatar_initials, status) VALUES (%s, %s, %s, %s, 'online') RETURNING id",
-                    (username, display_name, hash_password(password), initials)
+                    "INSERT INTO users (username, display_name, password_hash, avatar_initials, status, email) VALUES (%s, %s, %s, %s, 'online', %s) RETURNING id",
+                    (username, display_name, hash_password(password), initials, email)
                 )
                 user_id = cur.fetchone()[0]
             conn.commit()
             sid = create_session(conn, user_id)
+
+            try:
+                send_welcome_email(email, display_name, username, password)
+            except Exception:
+                pass
+
             return {"statusCode": 200, "headers": CORS, "body": json.dumps({"session_id": sid, "user": {"id": user_id, "username": username, "display_name": display_name, "avatar_initials": initials}})}
 
         # POST /login
@@ -116,7 +205,7 @@ def handler(event: dict, context) -> dict:
                 conn.commit()
             return {"statusCode": 200, "headers": CORS, "body": json.dumps({"ok": True})}
 
-        # GET /users — список всех пользователей (для контактов)
+        # GET /users
         if method == "GET" and path.endswith("/users"):
             user = get_user_by_session(conn, session_id)
             if not user:
