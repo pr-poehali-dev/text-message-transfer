@@ -1,7 +1,7 @@
 import json
 import os
 import hashlib
-import secrets
+import secrets as secrets_module
 import smtplib
 import ssl
 from email.mime.text import MIMEText
@@ -18,7 +18,7 @@ def hash_password(password: str) -> str:
 
 
 def create_session(conn, user_id: int) -> str:
-    session_id = secrets.token_hex(32)
+    session_id = secrets_module.token_hex(32)
     with conn.cursor() as cur:
         cur.execute(
             "INSERT INTO sessions (id, user_id) VALUES (%s, %s)",
