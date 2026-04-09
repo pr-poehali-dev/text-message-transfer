@@ -132,17 +132,18 @@ def handler(event: dict, context) -> dict:
     if event.get("httpMethod") == "OPTIONS":
         return {"statusCode": 200, "headers": CORS, "body": ""}
 
-    path = event.get("path", "/")
     method = event.get("httpMethod", "GET")
     body = json.loads(event.get("body") or "{}")
     headers = event.get("headers") or {}
+    params = event.get("queryStringParameters") or {}
+    action = params.get("action", "")
     session_id = headers.get("x-session-id") or headers.get("X-Session-Id", "")
 
     conn = get_conn()
 
     try:
-        # POST /register
-        if method == "POST" and path.endswith("/register"):
+        # POST register
+        if method == "POST" and action == "register":
             username = body.get("username", "").strip().lower()
             display_name = body.get("display_name", "").strip()
             password = body.get("password", "")
@@ -169,8 +170,8 @@ def handler(event: dict, context) -> dict:
 
             return {"statusCode": 200, "headers": CORS, "body": json.dumps({"session_id": sid, "user": {"id": user_id, "username": username, "display_name": display_name, "avatar_initials": initials}})}
 
-        # POST /login
-        if method == "POST" and path.endswith("/login"):
+        # POST login
+        if method == "POST" and action == "login":
             username = body.get("username", "").strip().lower()
             password = body.get("password", "")
             with conn.cursor() as cur:
@@ -188,15 +189,15 @@ def handler(event: dict, context) -> dict:
             sid = create_session(conn, row[0])
             return {"statusCode": 200, "headers": CORS, "body": json.dumps({"session_id": sid, "user": {"id": row[0], "username": username, "display_name": row[1], "avatar_initials": row[2]}})}
 
-        # GET /me
-        if method == "GET" and path.endswith("/me"):
+        # GET me
+        if method == "GET" and action == "me":
             user = get_user_by_session(conn, session_id)
             if not user:
                 return {"statusCode": 401, "headers": CORS, "body": json.dumps({"error": "Не авторизован"})}
             return {"statusCode": 200, "headers": CORS, "body": json.dumps({"user": user})}
 
-        # POST /logout
-        if method == "POST" and path.endswith("/logout"):
+        # POST logout
+        if method == "POST" and action == "logout":
             if session_id:
                 with conn.cursor() as cur:
                     cur.execute("UPDATE sessions SET expires_at = NOW() WHERE id = %s", (session_id,))
@@ -205,8 +206,8 @@ def handler(event: dict, context) -> dict:
                 conn.commit()
             return {"statusCode": 200, "headers": CORS, "body": json.dumps({"ok": True})}
 
-        # GET /users
-        if method == "GET" and path.endswith("/users"):
+        # GET users
+        if method == "GET" and action == "users":
             user = get_user_by_session(conn, session_id)
             if not user:
                 return {"statusCode": 401, "headers": CORS, "body": json.dumps({"error": "Не авторизован"})}
