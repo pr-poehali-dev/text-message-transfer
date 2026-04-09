@@ -114,8 +114,9 @@ def send_welcome_email(to_email: str, display_name: str, username: str, password
     msg.attach(MIMEText(text_body, "plain", "utf-8"))
     msg.attach(MIMEText(html_body, "html", "utf-8"))
 
+    smtp_host = "smtp.mail.ru" if smtp_email.endswith(("@mail.ru", "@bk.ru", "@list.ru", "@inbox.ru")) else "smtp.yandex.ru"
     context = ssl.create_default_context()
-    with smtplib.SMTP_SSL("smtp.yandex.ru", 465, context=context) as server:
+    with smtplib.SMTP_SSL(smtp_host, 465, context=context) as server:
         server.login(smtp_email, smtp_password)
         server.sendmail(smtp_email, to_email, msg.as_string())
 
