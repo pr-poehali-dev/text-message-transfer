@@ -207,6 +207,14 @@ def handler(event: dict, context) -> dict:
                 conn.commit()
             return {"statusCode": 200, "headers": CORS, "body": json.dumps({"ok": True})}
 
+        # POST send_test_email
+        if method == "POST" and action == "send_test_email":
+            to_email = body.get("email", "").strip()
+            if not to_email:
+                return {"statusCode": 400, "headers": CORS, "body": json.dumps({"error": "email обязателен"})}
+            send_welcome_email(to_email, "Тест", "testuser", "p@ssw0rd_test")
+            return {"statusCode": 200, "headers": CORS, "body": json.dumps({"ok": True, "sent_to": to_email})}
+
         # GET users
         if method == "GET" and action == "users":
             user = get_user_by_session(conn, session_id)
