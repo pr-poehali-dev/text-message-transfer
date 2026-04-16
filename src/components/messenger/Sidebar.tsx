@@ -194,6 +194,42 @@ export function SearchPanel({ chats }: { chats: Chat[] }) {
 export function SettingsPanel({ currentUser, onLogout }: { currentUser: User; onLogout: () => void }) {
   const [e2e] = useState(true);
   const [notifs, setNotifs] = useState(true);
+  const [showChangePwd, setShowChangePwd] = useState(false);
+  const [oldPassword, setOldPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [pwdLoading, setPwdLoading] = useState(false);
+  const [pwdError, setPwdError] = useState("");
+  const [pwdSuccess, setPwdSuccess] = useState(false);
+
+  const INPUT_CLS = "w-full bg-[hsl(220_16%_10%)] border border-[hsl(220_12%_19%)] rounded-xl px-3 py-2 text-sm text-[hsl(210_20%_92%)] placeholder-[hsl(215_12%_36%)] outline-none focus:border-[hsl(168_84%_28%)] transition-colors";
+
+  const handleChangePwd = async () => {
+    if (!oldPassword || !newPassword || !confirmPassword) {
+      sounds.error(); setPwdError("Заполните все поля"); return;
+    }
+    if (newPassword !== confirmPassword) {
+      sounds.error(); setPwdError("Новые пароли не совпадают"); return;
+    }
+    if (newPassword.length < 6) {
+      sounds.error(); setPwdError("Пароль должен быть не менее 6 символов"); return;
+    }
+    sounds.click();
+    setPwdLoading(true);
+    setPwdError("");
+    try {
+      await api.changePassword(oldPassword, newPassword);
+      sounds.success();
+      setPwdSuccess(true);
+      setOldPassword(""); setNewPassword(""); setConfirmPassword("");
+      setTimeout(() => { setPwdSuccess(false); setShowChangePwd(false); }, 2000);
+    } catch (e: unknown) {
+      sounds.error();
+      setPwdError(e instanceof Error ? e.message : "Ошибка");
+    } finally {
+      setPwdLoading(false);
+    }
+  };
 
   const Toggle = ({ value, onChange }: { value: boolean; onChange: () => void }) => (
     <button onClick={onChange} style={{ width: "40px", height: "22px" }} className={`relative rounded-full transition-colors duration-200 ${value ? "bg-[hsl(168_84%_52%)]" : "bg-[hsl(220_12%_20%)]"}`}>
@@ -221,6 +257,61 @@ export function SettingsPanel({ currentUser, onLogout }: { currentUser: User; on
         </div>
       </div>
 
+      <p className="text-xs text-[hsl(215_12%_40%)] px-2 mb-2 font-semibold uppercase tracking-wider">Профиль</p>
+      <div className="space-y-1 mb-5">
+        <div className="px-3 py-3 rounded-xl bg-[hsl(220_12%_13%)]">
+          <div className="flex items-center gap-3">
+            <AvatarCircle initials={currentUser.avatar_initials} online={true} size="md" />
+            <div>
+              <p className="text-sm font-medium text-[hsl(210_20%_92%)]">{currentUser.display_name}</p>
+              <p className="text-xs text-[hsl(215_12%_42%)]">@{currentUser.username}</p>
+            </div>
+            <button onClick={logout} className="ml-auto text-[hsl(215_12%_40%)] hover:text-[hsl(0_72%_55%)] transition-colors" title="Выйти">
+              <Icon name="LogOut" size={16} />
+            </button>
+          </div>
+        </div>
+
+        <button
+          onClick={() => { setShowChangePwd(!showChangePwd); setPwdError(""); setPwdSuccess(false); }}
+          className="w-full flex items-center gap-3 px-3 py-3 rounded-xl bg-[hsl(220_12%_13%)] hover:bg-[hsl(220_12%_15%)] transition-all"
+        >
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-[hsl(220_12%_18%)]">
+            <Icon name="KeyRound" size={15} className="text-[hsl(215_12%_55%)]" />
+          </div>
+          <div className="flex-1 text-left">
+            <p className="text-sm text-[hsl(210_20%_92%)]">Сменить пароль</p>
+            <p className="text-xs text-[hsl(215_12%_42%)]">Обновить пароль аккаунта</p>
+          </div>
+          <Icon name={showChangePwd ? "ChevronUp" : "ChevronDown"} size={15} className="text-[hsl(215_12%_42%)]" />
+        </button>
+
+        {showChangePwd && (
+          <div className="px-3 py-3 rounded-xl bg-[hsl(220_14%_11%)] border border-[hsl(220_12%_17%)] space-y-2">
+            {pwdSuccess ? (
+              <div className="flex items-center gap-2 py-2">
+                <Icon name="CheckCircle" size={16} className="text-[hsl(168_84%_52%)]" />
+                <p className="text-sm text-[hsl(168_84%_52%)]">Пароль успешно изменён!</p>
+              </div>
+            ) : (
+              <>
+                <input type="password" className={INPUT_CLS} placeholder="Текущий пароль" value={oldPassword} onChange={(e) => setOldPassword(e.target.value)} />
+                <input type="password" className={INPUT_CLS} placeholder="Новый пароль" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
+                <input type="password" className={INPUT_CLS} placeholder="Повторите новый пароль" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleChangePwd()} />
+                {pwdError && <p className="text-xs text-[hsl(0_72%_55%)] bg-[hsl(0_72%_10%)] border border-[hsl(0_72%_20%)] rounded-lg px-3 py-2">{pwdError}</p>}
+                <button
+                  onClick={handleChangePwd}
+                  disabled={pwdLoading}
+                  className="w-full py-2 bg-[hsl(168_84%_52%)] text-[hsl(220_16%_7%)] text-sm font-semibold rounded-xl hover:bg-[hsl(168_84%_60%)] transition-colors disabled:opacity-50"
+                >
+                  {pwdLoading ? "Сохраняем..." : "Сохранить пароль"}
+                </button>
+              </>
+            )}
+          </div>
+        )}
+      </div>
+
       <p className="text-xs text-[hsl(215_12%_40%)] px-2 mb-2 font-semibold uppercase tracking-wider">Безопасность</p>
       <div className="space-y-1 mb-5">
         <div className="flex items-center gap-3 px-3 py-3 rounded-xl bg-[hsl(220_12%_13%)]">
@@ -245,18 +336,6 @@ export function SettingsPanel({ currentUser, onLogout }: { currentUser: User; on
         </div>
       </div>
 
-      <div className="px-3 py-3 rounded-xl bg-[hsl(220_12%_13%)]">
-        <div className="flex items-center gap-3">
-          <AvatarCircle initials={currentUser.avatar_initials} online={true} size="md" />
-          <div>
-            <p className="text-sm font-medium text-[hsl(210_20%_92%)]">{currentUser.display_name}</p>
-            <p className="text-xs text-[hsl(215_12%_42%)]">@{currentUser.username}</p>
-          </div>
-          <button onClick={logout} className="ml-auto text-[hsl(215_12%_40%)] hover:text-[hsl(0_72%_55%)] transition-colors" title="Выйти">
-            <Icon name="LogOut" size={16} />
-          </button>
-        </div>
-      </div>
     </div>
   );
 }

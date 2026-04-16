@@ -293,6 +293,25 @@ def handler(event: dict, context) -> dict:
             send_reset_email(email, display_name, username, new_password)
             return {"statusCode": 200, "headers": CORS, "body": json.dumps({"ok": True})}
 
+        # POST change_password
+        if method == "POST" and action == "change_password":
+            user = get_user_by_session(conn, session_id)
+            if not user:
+                return {"statusCode": 401, "headers": CORS, "body": json.dumps({"error": "Не авторизован"})}
+            old_password = body.get("old_password", "")
+            new_password = body.get("new_password", "")
+            if not old_password or not new_password:
+                return {"statusCode": 400, "headers": CORS, "body": json.dumps({"error": "Заполните все поля"})}
+            if len(new_password) < 6:
+                return {"statusCode": 400, "headers": CORS, "body": json.dumps({"error": "Пароль должен быть не менее 6 символов"})}
+            with conn.cursor() as cur:
+                cur.execute("SELECT id FROM users WHERE id = %s AND password_hash = %s", (user["id"], hash_password(old_password)))
+                if not cur.fetchone():
+                    return {"statusCode": 403, "headers": CORS, "body": json.dumps({"error": "Неверный текущий пароль"})}
+                cur.execute("UPDATE users SET password_hash = %s WHERE id = %s", (hash_password(new_password), user["id"]))
+            conn.commit()
+            return {"statusCode": 200, "headers": CORS, "body": json.dumps({"ok": True})}
+
         # POST send_test_email
         if method == "POST" and action == "send_test_email":
             to_email = body.get("email", "").strip()

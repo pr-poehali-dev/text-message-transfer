@@ -45,6 +45,9 @@ export const api = {
   forgotPassword: (email: string) =>
     req("auth", "/?action=forgot_password", "POST", { email }),
 
+  changePassword: (old_password: string, new_password: string) =>
+    req("auth", "/?action=change_password", "POST", { old_password, new_password }),
+
   me: () => req("auth", "/?action=me", "GET"),
 
   getUsers: () => req("auth", "/?action=users", "GET"),
