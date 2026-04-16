@@ -2,10 +2,7 @@ import json
 import os
 import hashlib
 import secrets as secrets_module
-import smtplib
-import ssl
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
+import urllib.request
 import psycopg2
 
 
@@ -43,29 +40,8 @@ def get_user_by_session(conn, session_id: str):
 
 
 def send_welcome_email(to_email: str, display_name: str, username: str, password: str):
-    smtp_email = os.environ["SMTP_EMAIL"]
-    smtp_password = os.environ["SMTP_PASSWORD"]
-
-    msg = MIMEMultipart("alternative")
-    msg["Subject"] = "Добро пожаловать в YANCHAT — ваши данные для входа"
-    msg["From"] = f"YANCHAT <{smtp_email}>"
-    msg["Disposition-Notification-To"] = smtp_email
-    msg["Return-Receipt-To"] = smtp_email
-    msg["To"] = to_email
-
-    text_body = f"""Привет, {display_name}!
-
-Вы успешно зарегистрировались в YANCHAT — защищённом мессенджере с шифрованием AES-256.
-
-Ваши данные для входа:
-  Логин: {username}
-  Пароль: {password}
-
-Сохраните это письмо — пароль больше не будет отправлен повторно.
-
-С уважением,
-Команда Cipher
-"""
+    brevo_api_key = os.environ["BREVO_API_KEY"]
+    smtp_email = os.environ.get("SMTP_EMAIL", "noreply@yanchat.ru")
 
     html_body = f"""<!DOCTYPE html>
 <html>
@@ -77,7 +53,7 @@ def send_welcome_email(to_email: str, display_name: str, username: str, password
         <tr>
           <td style="padding:32px 32px 24px;text-align:center;border-bottom:1px solid #1e2330;">
             <div style="width:56px;height:56px;background:#0d2e24;border:1px solid #1a5c42;border-radius:14px;display:inline-flex;align-items:center;justify-content:center;margin-bottom:16px;">
-              <span style="font-size:24px;">🔐</span>
+              <span style="font-size:24px;">&#128272;</span>
             </div>
             <h1 style="margin:0;font-size:22px;font-weight:700;color:#edf0f5;">YANCHAT</h1>
             <p style="margin:6px 0 0;font-size:12px;color:#4a5568;font-family:monospace;">AES-256-GCM · E2E Encrypted</p>
@@ -97,7 +73,7 @@ def send_welcome_email(to_email: str, display_name: str, username: str, password
             </div>
             <div style="background:#0d1e16;border:1px solid #1a3a28;border-radius:10px;padding:14px 18px;">
               <p style="margin:0;font-size:12px;color:#2d7a58;line-height:1.5;">
-                🔒 Сохраните это письмо — пароль больше не будет отправлен повторно.
+                &#128274; Сохраните это письмо — пароль больше не будет отправлен повторно.
               </p>
             </div>
           </td>
@@ -113,14 +89,29 @@ def send_welcome_email(to_email: str, display_name: str, username: str, password
 </body>
 </html>"""
 
-    msg.attach(MIMEText(text_body, "plain", "utf-8"))
-    msg.attach(MIMEText(html_body, "html", "utf-8"))
+    text_body = f"Привет, {display_name}!\n\nЛогин: {username}\nПароль: {password}\n\nСохраните это письмо.\n\nКоманда YANCHAT"
 
-    smtp_host = "smtp.mail.ru" if smtp_email.endswith(("@mail.ru", "@bk.ru", "@list.ru", "@inbox.ru")) else "smtp.yandex.ru"
-    context = ssl.create_default_context()
-    with smtplib.SMTP_SSL(smtp_host, 465, context=context) as server:
-        server.login(smtp_email, smtp_password)
-        server.sendmail(smtp_email, to_email, msg.as_string())
+    payload = json.dumps({
+        "sender": {"name": "YANCHAT", "email": smtp_email},
+        "to": [{"email": to_email}],
+        "subject": "Добро пожаловать в YANCHAT — ваши данные для входа",
+        "htmlContent": html_body,
+        "textContent": text_body,
+        "headers": {"Disposition-Notification-To": smtp_email}
+    }).encode("utf-8")
+
+    req = urllib.request.Request(
+        "https://api.brevo.com/v3/smtp/email",
+        data=payload,
+        headers={
+            "api-key": brevo_api_key,
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+        },
+        method="POST"
+    )
+    with urllib.request.urlopen(req) as resp:
+        resp.read()
 
 
 CORS = {
