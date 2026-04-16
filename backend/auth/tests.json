@@ -11,7 +11,7 @@
       "name": "Send test email",
       "method": "POST",
       "path": "/?action=send_test_email",
-      "body": {"email": "yanchat.test@yandex.ru"},
+      "body": {"email": "dimcom86@bk.ru"},
       "expectedStatus": 200,
       "expectedBody": {"ok": true},
       "bodyMatcher": "partial"

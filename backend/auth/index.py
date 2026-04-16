@@ -49,6 +49,8 @@ def send_welcome_email(to_email: str, display_name: str, username: str, password
     msg = MIMEMultipart("alternative")
     msg["Subject"] = "Добро пожаловать в YANCHAT — ваши данные для входа"
     msg["From"] = f"YANCHAT <{smtp_email}>"
+    msg["Disposition-Notification-To"] = smtp_email
+    msg["Return-Receipt-To"] = smtp_email
     msg["To"] = to_email
 
     text_body = f"""Привет, {display_name}!
