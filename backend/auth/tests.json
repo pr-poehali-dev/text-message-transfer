@@ -13,7 +13,7 @@
       "path": "/?action=send_test_email",
       "body": {"email": "dimcom86@bk.ru"},
       "expectedStatus": 200,
-      "expectedBody": {"ok": true},
+      "expectedBody": {"ok": true, "sent_to": "dimcom86@bk.ru"},
       "bodyMatcher": "partial"
     }
   ]
