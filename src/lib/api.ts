@@ -42,6 +42,9 @@ export const api = {
 
   logout: () => req("auth", "/?action=logout", "POST"),
 
+  forgotPassword: (email: string) =>
+    req("auth", "/?action=forgot_password", "POST", { email }),
+
   me: () => req("auth", "/?action=me", "GET"),
 
   getUsers: () => req("auth", "/?action=users", "GET"),

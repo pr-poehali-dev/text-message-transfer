@@ -115,6 +115,80 @@ def send_welcome_email(to_email: str, display_name: str, username: str, password
         resp.read()
 
 
+def send_reset_email(to_email: str, display_name: str, username: str, new_password: str):
+    brevo_api_key = os.environ["BREVO_API_KEY"]
+    smtp_email = os.environ.get("SMTP_EMAIL", "noreply@yanchat.ru")
+
+    html_body = f"""<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background:#0f1117;font-family:'Helvetica Neue',Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#0f1117;padding:40px 20px;">
+    <tr><td align="center">
+      <table width="480" cellpadding="0" cellspacing="0" style="background:#13161e;border-radius:16px;border:1px solid #1e2330;overflow:hidden;">
+        <tr>
+          <td style="padding:32px 32px 24px;text-align:center;border-bottom:1px solid #1e2330;">
+            <div style="width:56px;height:56px;background:#2e1a0d;border:1px solid #5c3a1a;border-radius:14px;display:inline-flex;align-items:center;justify-content:center;margin-bottom:16px;">
+              <span style="font-size:24px;">&#128273;</span>
+            </div>
+            <h1 style="margin:0;font-size:22px;font-weight:700;color:#edf0f5;">YANCHAT</h1>
+            <p style="margin:6px 0 0;font-size:12px;color:#4a5568;font-family:monospace;">Восстановление пароля</p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:28px 32px;">
+            <p style="margin:0 0 20px;font-size:15px;color:#c8d0dc;">Привет, <strong style="color:#edf0f5;">{display_name}</strong>!</p>
+            <p style="margin:0 0 24px;font-size:14px;color:#8896aa;line-height:1.6;">
+              Мы сбросили ваш пароль по запросу. Вот новые данные для входа:
+            </p>
+            <div style="background:#0d1520;border:1px solid #1e2d3d;border-radius:12px;padding:20px 24px;margin-bottom:24px;">
+              <p style="margin:0 0 4px;font-size:11px;color:#4a5568;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;">Логин</p>
+              <p style="margin:0 0 16px;font-size:16px;color:#edf0f5;font-family:monospace;">{username}</p>
+              <p style="margin:0 0 4px;font-size:11px;color:#4a5568;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;">Новый пароль</p>
+              <p style="margin:0;font-size:16px;color:#d4a02d;font-family:monospace;font-weight:600;">{new_password}</p>
+            </div>
+            <div style="background:#1e1508;border:1px solid #3a2a10;border-radius:10px;padding:14px 18px;">
+              <p style="margin:0;font-size:12px;color:#7a5a20;line-height:1.5;">
+                &#128274; Если вы не запрашивали сброс пароля — просто проигнорируйте это письмо.
+              </p>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:16px 32px 24px;text-align:center;border-top:1px solid #1e2330;">
+            <p style="margin:0;font-size:12px;color:#2d3748;">YANCHAT · Все сообщения зашифрованы</p>
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>"""
+
+    text_body = f"Привет, {display_name}!\n\nВаш новый пароль:\nЛогин: {username}\nПароль: {new_password}\n\nЕсли вы не запрашивали сброс — проигнорируйте это письмо.\n\nКоманда YANCHAT"
+
+    payload = json.dumps({
+        "sender": {"name": "YANCHAT", "email": smtp_email},
+        "to": [{"email": to_email}],
+        "subject": "Восстановление пароля YANCHAT",
+        "htmlContent": html_body,
+        "textContent": text_body
+    }).encode("utf-8")
+
+    req = urllib.request.Request(
+        "https://api.brevo.com/v3/smtp/email",
+        data=payload,
+        headers={
+            "api-key": brevo_api_key,
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+        },
+        method="POST"
+    )
+    with urllib.request.urlopen(req) as resp:
+        resp.read()
+
+
 CORS = {
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
@@ -199,6 +273,24 @@ def handler(event: dict, context) -> dict:
                     with conn.cursor() as cur2:
                         cur2.execute("UPDATE users SET status = 'offline' WHERE id = (SELECT user_id FROM sessions WHERE id = %s)", (session_id,))
                 conn.commit()
+            return {"statusCode": 200, "headers": CORS, "body": json.dumps({"ok": True})}
+
+        # POST forgot_password
+        if method == "POST" and action == "forgot_password":
+            email = body.get("email", "").strip().lower()
+            if not email:
+                return {"statusCode": 400, "headers": CORS, "body": json.dumps({"error": "email обязателен"})}
+            with conn.cursor() as cur:
+                cur.execute("SELECT username, display_name, password_hash FROM users WHERE email = %s", (email,))
+                row = cur.fetchone()
+            if not row:
+                return {"statusCode": 200, "headers": CORS, "body": json.dumps({"ok": True})}
+            username, display_name, _ = row
+            new_password = secrets_module.token_urlsafe(10)
+            with conn.cursor() as cur:
+                cur.execute("UPDATE users SET password_hash = %s WHERE email = %s", (hash_password(new_password), email))
+            conn.commit()
+            send_reset_email(email, display_name, username, new_password)
             return {"statusCode": 200, "headers": CORS, "body": json.dumps({"ok": True})}
 
         # POST send_test_email
