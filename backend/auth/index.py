@@ -2,10 +2,7 @@ import json
 import os
 import hashlib
 import secrets as secrets_module
-import smtplib
-import ssl
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
+import urllib.request
 
 import psycopg2
 
@@ -43,19 +40,27 @@ def get_user_by_session(conn, session_id: str):
     return {"id": row[0], "username": row[1], "display_name": row[2], "avatar_initials": row[3], "status": row[4]}
 
 
-def _send_smtp(to_email: str, subject: str, html_body: str, text_body: str):
-    smtp_email = os.environ["SMTP_EMAIL"]
-    smtp_password = os.environ["SMTP_PASSWORD"]
-    msg = MIMEMultipart("alternative")
-    msg["Subject"] = subject
-    msg["From"] = f"YANCHAT <{smtp_email}>"
-    msg["To"] = to_email
-    msg.attach(MIMEText(text_body, "plain", "utf-8"))
-    msg.attach(MIMEText(html_body, "html", "utf-8"))
-    ctx = ssl.create_default_context()
-    with smtplib.SMTP_SSL("smtp.mail.ru", 465, context=ctx) as server:
-        server.login(smtp_email, smtp_password)
-        server.sendmail(smtp_email, to_email, msg.as_bytes())
+def _send_brevo(to_email: str, subject: str, html_body: str, text_body: str):
+    smtp_email = os.environ.get("SMTP_EMAIL", "noreply@yanchat.ru")
+    payload = json.dumps({
+        "sender": {"name": "YANCHAT", "email": smtp_email},
+        "to": [{"email": to_email}],
+        "subject": subject,
+        "htmlContent": html_body,
+        "textContent": text_body
+    }).encode("utf-8")
+    req = urllib.request.Request(
+        "https://api.brevo.com/v3/smtp/email",
+        data=payload,
+        headers={
+            "api-key": os.environ["BREVO_API_KEY"],
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+        },
+        method="POST"
+    )
+    with urllib.request.urlopen(req) as resp:
+        resp.read()
 
 
 def send_welcome_email(to_email: str, display_name: str, username: str, password: str):
@@ -105,7 +110,7 @@ def send_welcome_email(to_email: str, display_name: str, username: str, password
 </body>
 </html>"""
     text_body = f"Привет, {display_name}!\n\nЛогин: {username}\nПароль: {password}\n\nСохраните это письмо.\n\nКоманда YANCHAT"
-    _send_smtp(to_email, "Добро пожаловать в YANCHAT — ваши данные для входа", html_body, text_body)
+    _send_brevo(to_email, "Добро пожаловать в YANCHAT — ваши данные для входа", html_body, text_body)
 
 
 def send_reset_email(to_email: str, display_name: str, username: str, new_password: str):
@@ -156,7 +161,7 @@ def send_reset_email(to_email: str, display_name: str, username: str, new_passwo
 </html>"""
 
     text_body = f"Привет, {display_name}!\n\nВаш новый пароль:\nЛогин: {username}\nПароль: {new_password}\n\nЕсли вы не запрашивали сброс — проигнорируйте это письмо.\n\nКоманда YANCHAT"
-    _send_smtp(to_email, "Восстановление пароля YANCHAT", html_body, text_body)
+    _send_brevo(to_email, "Восстановление пароля YANCHAT", html_body, text_body)
 
 
 CORS = {
